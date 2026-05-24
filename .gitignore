@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.coverage
+.ruff_cache/
+
+# Data + artifacts
+data/
+warehouse/
+*.duckdb
+*.duckdb.wal
+
+# Secrets
+.env
+dbt/profiles.yml
+~/.kaggle/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Project artifacts
+target/
+dbt_packages/
+logs/
