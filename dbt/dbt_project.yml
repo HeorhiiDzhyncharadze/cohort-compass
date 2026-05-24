@@ -1,0 +1,31 @@
+name: 'cohort_compass'
+version: '0.1.0'
+config-version: 2
+
+profile: 'cohort_compass'
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+snapshot-paths: ["snapshots"]
+analysis-paths: ["analyses"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+  - "logs"
+
+models:
+  cohort_compass:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: ephemeral
+    marts:
+      +materialized: table
+
+vars:
+  start_date: '2019-10-01'
+  end_date: '2020-04-30'
+  session_gap_minutes: 30
