@@ -7,6 +7,7 @@ Requires KAGGLE_USERNAME and KAGGLE_KEY in environment (or ~/.kaggle/kaggle.json
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -29,30 +30,36 @@ def already_downloaded(filename: str) -> bool:
     return (RAW_DIR / filename).exists()
 
 
+def _kaggle_cli() -> Path:
+    """Return path to kaggle CLI in the current venv."""
+    scripts = Path(sys.executable).parent
+    return scripts / ("kaggle.exe" if sys.platform == "win32" else "kaggle")
+
+
 def download_all() -> None:
     load_dotenv()
     if not (os.getenv("KAGGLE_USERNAME") and os.getenv("KAGGLE_KEY")):
         print("ERROR: set KAGGLE_USERNAME and KAGGLE_KEY (see .env.example)")
         sys.exit(1)
 
-    from kaggle.api.kaggle_api_extended import KaggleApi
-
-    api = KaggleApi()
-    api.authenticate()
     RAW_DIR.mkdir(parents=True, exist_ok=True)
+    kaggle = _kaggle_cli()
 
     for filename in expected_files():
         if already_downloaded(filename):
             print(f"  ✓ {filename} already present, skipping")
             continue
         print(f"  ↓ downloading {filename}...")
-        api.dataset_download_file(KAGGLE_DATASET, filename, path=str(RAW_DIR))
-        zip_path = RAW_DIR / f"{filename}.zip"
-        if zip_path.exists():
-            import zipfile
-            with zipfile.ZipFile(zip_path) as z:
-                z.extractall(RAW_DIR)
-            zip_path.unlink()
+        subprocess.run(
+            [
+                str(kaggle), "datasets", "download",
+                "-d", KAGGLE_DATASET,
+                "-f", filename,
+                "--path", str(RAW_DIR),
+                "--unzip",
+            ],
+            check=True,
+        )
 
     print(f"Done. Files in {RAW_DIR}/")
 
