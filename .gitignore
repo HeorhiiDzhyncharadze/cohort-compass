@@ -33,3 +33,6 @@ Thumbs.db
 target/
 dbt_packages/
 logs/
+
+# dbt auto-generated
+dbt/.user.yml
