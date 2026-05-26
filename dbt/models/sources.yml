@@ -1,0 +1,20 @@
+version: 2
+
+sources:
+  - name: raw
+    description: "REES46 event stream loaded via scripts/ingest.py"
+    schema: main
+    tables:
+      - name: raw_events
+        description: "Raw REES46 events from Parquet external view"
+        columns:
+          - name: event_time
+          - name: event_type
+          - name: product_id
+          - name: category_id
+          - name: category_code
+          - name: brand
+          - name: price
+          - name: user_id
+          - name: user_session
+          - name: event_date

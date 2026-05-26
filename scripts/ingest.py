@@ -62,7 +62,7 @@ def build_external_view(parquet_dir: Path, db_path: Path) -> int:
     """Register Parquet glob as DuckDB view `raw_events`. Returns row count."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect(str(db_path))
-    pattern = str(parquet_dir / "event_date=*" / "*.parquet").replace("\\", "/")
+    pattern = str(parquet_dir.resolve() / "event_date=*" / "*.parquet").replace("\\", "/")
     con.execute(
         f"""
         CREATE OR REPLACE VIEW raw_events AS
