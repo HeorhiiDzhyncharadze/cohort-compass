@@ -26,8 +26,8 @@ ranked as (
 
         datediff(
             'day',
-            lag(event_time) over (partition by user_id order by event_time),
-            event_time
+            (lag(event_time) over (partition by user_id order by event_time))::timestamp,
+            event_time::timestamp
         ) as days_since_prev_purchase
 
     from purchases

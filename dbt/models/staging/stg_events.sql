@@ -23,7 +23,8 @@ cast_and_clean as (
         cast(price        as decimal(10, 2)) as price,
 
         -- month-level partition key for downstream cohort models
-        date_trunc('month', cast(event_time as timestamptz))::date as event_date
+        -- cast через timestamp (без tz) бо DuckDB не підтримує TIMESTAMPTZ::DATE
+        date_trunc('month', cast(event_time as timestamp))::date as event_date
 
     from source
     where price > 0 or price is null
