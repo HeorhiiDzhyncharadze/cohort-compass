@@ -64,6 +64,8 @@ CSV (14GB) → scripts/ingest.py → Parquet (partitioned by event_date)
 - dbt incremental models use `materialized='incremental'` with `unique_key`; at least 3 models must be incremental
 - RFM scoring uses `NTILE(5)` window functions, not CASE ladders
 - Sessionization: 30-minute inactivity gap, implemented as window SUM over LAG diff
+- `mart_journey` stays as VIEW (LAG over 411M rows can't materialize on 13GB RAM). Streamlit page uses `@st.cache_data(ttl=3600)` — first query ~30-60s, then cached
+- `mart_anomalies` uses daily grain (`event_time::date`) + `approx_count_distinct` for memory efficiency
 
 ## Boundaries
 
