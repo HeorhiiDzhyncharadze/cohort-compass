@@ -16,38 +16,54 @@ from __future__ import annotations
 #   gmv, orders, buyers, cvr, aov, repeat_rate
 # Source: fct_purchases + dim_users
 KPI_SUMMARY = """
--- TODO: write KPI summary query
 SELECT
-    NULL::DOUBLE AS gmv,
-    NULL::BIGINT AS orders,
-    NULL::BIGINT AS buyers,
-    NULL::DOUBLE AS cvr,
-    NULL::DOUBLE AS aov,
-    NULL::DOUBLE AS repeat_rate
+    SUM(p.price)                                                          AS gmv,
+    COUNT(*)                                                              AS orders,
+    COUNT(DISTINCT p.user_id)                                             AS buyers,
+    ROUND(
+        COUNT(DISTINCT p.user_id) * 1.0
+        / NULLIF((SELECT SUM(viewers) FROM mart_funnel), 0),
+        4
+    )                                                                     AS cvr,
+    ROUND(SUM(p.price) / NULLIF(COUNT(*), 0), 2)                         AS aov,
+    ROUND(
+        COUNT(DISTINCT CASE WHEN u.total_purchases > 1 THEN u.user_id END) * 1.0
+        / NULLIF(COUNT(DISTINCT u.user_id), 0),
+        4
+    )                                                                     AS repeat_rate
+FROM fct_purchases p
+JOIN dim_users u ON p.user_id = u.user_id
 """
 
 # TODO: write SQL that returns daily GMV trend
 # Columns: event_day, gmv, gmv_7d_ma
 # Source: fct_purchases
 GMV_TREND = """
--- TODO: write daily GMV trend with 7-day moving average
 SELECT
-    NULL::DATE   AS event_day,
-    NULL::DOUBLE AS gmv,
-    NULL::DOUBLE AS gmv_7d_ma
-LIMIT 0
+    event_time::DATE                                                                   AS event_day,
+    SUM(price)                                                                         AS gmv,
+    AVG(SUM(price)) OVER (
+        ORDER BY event_time::DATE
+        ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+    )                                                                                  AS gmv_7d_ma
+FROM fct_purchases
+GROUP BY event_time::DATE
+ORDER BY event_day
 """
 
 # TODO: write SQL that returns category mix (top 10 by GMV)
 # Columns: category_code, gmv, pct
 # Source: fct_purchases
 CATEGORY_MIX = """
--- TODO: write category GMV mix
 SELECT
-    NULL::VARCHAR AS category_code,
-    NULL::DOUBLE  AS gmv,
-    NULL::DOUBLE  AS pct
-LIMIT 0
+    category_code,
+    SUM(price)                                                AS gmv,
+    ROUND(SUM(price) * 100.0 / SUM(SUM(price)) OVER(), 1)   AS pct
+FROM fct_purchases
+WHERE category_code IS NOT NULL
+GROUP BY category_code
+ORDER BY gmv DESC
+LIMIT 10
 """
 
 # ---------------------------------------------------------------------------
