@@ -3,13 +3,14 @@
 > End-to-end retention & LTV analytics platform on **411M real e-commerce events** — SQL-first architecture (dbt + DuckDB) with an interactive Streamlit explorer that exposes every chart's underlying SQL.
 
 [![CI](https://github.com/heorhiidzhyncharadze/cohort-compass/actions/workflows/ci.yml/badge.svg)](https://github.com/heorhiidzhyncharadze/cohort-compass/actions/workflows/ci.yml)
+[![dbt docs](https://github.com/heorhiidzhyncharadze/cohort-compass/actions/workflows/dbt-docs.yml/badge.svg)](https://heorhiidzhyncharadze.github.io/cohort-compass)
 ![Python](https://img.shields.io/badge/Python-3.12-blue?logo=python)
-![dbt](https://img.shields.io/badge/dbt-1.8-orange?logo=dbt)
+![dbt](https://img.shields.io/badge/dbt-1.11-orange?logo=dbt)
 ![DuckDB](https://img.shields.io/badge/DuckDB-1.x-yellow)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.38-red?logo=streamlit)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-1.5-blue?logo=scikit-learn)
 
-<!-- TODO Day 14: add [Live Demo] and [Watch Video] buttons once deployed -->
+**[🚀 Live Demo](https://cohort-compass.streamlit.app)** &nbsp;|&nbsp; **[📊 dbt Docs](https://heorhiidzhyncharadze.github.io/cohort-compass)**
 
 ---
 
@@ -67,7 +68,7 @@ flowchart LR
 | Transformation | dbt-core 1.8 + dbt-duckdb adapter |
 | Orchestration | Makefile |
 | Presentation | Streamlit 1.38 (multipage) + Plotly |
-| ML | scikit-learn (LogisticRegression, AUC ≥ 0.70) |
+| ML | scikit-learn (LogisticRegression, AUC 0.63 — honest model, no leakage) |
 | Deps | uv + pyproject.toml |
 | CI | GitHub Actions (pytest + dbt parse on every push) |
 | Docs | dbt docs → GitHub Pages |
@@ -87,7 +88,7 @@ The dbt layer contains 12+ models showcasing advanced SQL:
 | Funnel | `mart_funnel` | Conditional aggregation on `event_type` |
 | Journey transitions | `mart_journey` | `LAG/LEAD` event pairs + `GROUP BY transition` |
 | Anomaly detection | `mart_anomalies` | Rolling `AVG/STDDEV` + Z-score `CASE` |
-| Incremental loads | `fct_events` etc. | `materialized='incremental'` with `unique_key` |
+| Incremental loads | `fct_purchases` | `materialized='incremental'` with `unique_key` |
 
 Full SQL examples: [`docs/sql-highlights.md`](docs/sql-highlights.md)
 
@@ -164,6 +165,33 @@ Raw CSV files are **not committed** (14 GB). `make data` downloads them via Kagg
 | 7 | **Data Model** | Embedded dbt lineage graph + model documentation |
 
 Every chart has a **"Show SQL"** toggle that exposes the exact SQL powering it.
+
+---
+
+## Deploy
+
+### Streamlit Community Cloud
+
+1. Build the sampled DB (commits ~70 MB to git):
+   ```bash
+   make sample-deploy
+   git add warehouse/cohort_compass_sample.duckdb
+   git push
+   ```
+2. Go to [share.streamlit.io](https://share.streamlit.io) → New app
+   - Repository: `heorhiidzhyncharadze/cohort-compass`
+   - Branch: `main`
+   - Main file: `app/Home.py`
+3. App settings → Secrets → add:
+   ```toml
+   DUCKDB_PATH = "warehouse/cohort_compass_sample.duckdb"
+   ```
+
+### GitHub Pages (dbt docs)
+
+1. Repository → Settings → Pages → Source: **GitHub Actions**
+2. Push to `main` — the `dbt-docs.yml` workflow generates docs and deploys automatically
+3. Docs live at: `https://heorhiidzhyncharadze.github.io/cohort-compass`
 
 ---
 
