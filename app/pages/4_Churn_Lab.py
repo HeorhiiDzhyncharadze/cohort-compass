@@ -1,5 +1,6 @@
 """Cohort Compass — Churn Lab."""
 
+import pandas as pd
 import streamlit as st
 import plotly.express as px
 
@@ -125,11 +126,101 @@ else:
 st.divider()
 
 # ---------------------------------------------------------------------------
-# ML placeholder — populated after `make ml`
+# 4. ML Churn Scores — populated after `make ml`
 # ---------------------------------------------------------------------------
 st.subheader("ML Churn Scores")
-st.info(
-    "Run `make ml` to train the churn model and populate `scored_users`. "
-    "Churn probabilities will appear here automatically.",
-    icon="🤖",
+
+try:
+    scored = db.query(queries.CHURN_SCORES)
+except Exception:
+    scored = pd.DataFrame()
+
+if scored.empty:
+    st.info(
+        "Run `make ml` to train the churn model and populate `scored_users`. "
+        "Churn probabilities will appear here automatically.",
+        icon="🤖",
+    )
+    st.stop()
+
+# --- KPI row ---
+high_risk = (scored["churn_probability"] >= 0.5).sum()
+avg_prob  = scored["churn_probability"].mean()
+
+m1, m2, m3 = st.columns(3)
+m1.metric("Users Scored",    f"{len(scored):,}")
+m2.metric("Predicted Churn", f"{high_risk:,}  ({high_risk/len(scored)*100:.1f}%)")
+m3.metric("Avg Churn Prob",  f"{avg_prob:.1%}")
+
+show_sql("ML Scores", queries.CHURN_SCORES)
+
+st.divider()
+
+# --- Threshold slider (defined before column blocks so value is in scope) ---
+st.subheader("What-If: Intervention Simulator")
+st.caption("Set probability threshold to target the right cohort for a re-engagement campaign.")
+
+threshold = st.slider(
+    "Churn probability threshold",
+    min_value=0.10, max_value=0.90, value=0.50, step=0.05,
+    format="%.2f",
 )
+
+col_hist, col_sim = st.columns([3, 2])
+
+with col_hist:
+    fig_hist = px.histogram(
+        scored,
+        x="churn_probability",
+        nbins=50,
+        color_discrete_sequence=["#636EFA"],
+        labels={"churn_probability": "Churn Probability"},
+        title="Churn Probability Distribution",
+    )
+    fig_hist.add_vline(
+        x=threshold,
+        line_dash="dash",
+        line_color="#EF553B",
+        annotation_text=f"Threshold {threshold:.2f}",
+        annotation_position="top right",
+    )
+    fig_hist.update_layout(bargap=0.05, yaxis_title="Users")
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+with col_sim:
+    targeted     = int((scored["churn_probability"] >= threshold).sum())
+    pct_targeted = targeted / len(scored) * 100
+    save_rate    = st.slider("Estimated save rate (%)", 5, 40, 15, 5)
+    saved        = int(targeted * save_rate / 100)
+    avg_spend    = float(df["total_spend"].mean())
+    revenue_saved = saved * avg_spend
+
+    st.metric("Users Targeted",     f"{targeted:,}  ({pct_targeted:.1f}%)")
+    st.metric("Est. Users Saved",   f"{saved:,}")
+    st.metric("Est. Revenue Saved", f"${revenue_saved:,.0f}")
+    st.caption(
+        f"Avg spend per user: ${avg_spend:.2f}. "
+        "Revenue estimate assumes saved users retain their historical average spend."
+    )
+
+st.divider()
+
+# --- Top high-risk users table ---
+st.subheader(f"Top 50 Users — Churn Probability ≥ {threshold:.2f}")
+
+top_risk = scored[scored["churn_probability"] >= threshold].head(50)
+
+if top_risk.empty:
+    st.info("No users above this threshold. Lower the slider.")
+else:
+    st.dataframe(
+        top_risk[["user_id", "churn_probability", "churn_label"]]
+        .rename(columns={
+            "user_id":           "User ID",
+            "churn_probability": "Churn Probability",
+            "churn_label":       "Predicted Churned",
+        })
+        .reset_index(drop=True),
+        use_container_width=True,
+        hide_index=True,
+    )
