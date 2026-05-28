@@ -9,13 +9,14 @@ from lib import db
 # Cache category / brand lists so sidebar doesn't re-query on every interaction
 @st.cache_data(ttl=3600)
 def _load_categories() -> list[str]:
-    df = db.query("SELECT DISTINCT category_code FROM fct_events WHERE category_code IS NOT NULL ORDER BY 1")
+    # fct_purchases = materialized table (6.8M rows) — much faster than fct_events VIEW (411M)
+    df = db.query("SELECT DISTINCT category_code FROM fct_purchases WHERE category_code IS NOT NULL ORDER BY 1")
     return df["category_code"].tolist()
 
 
 @st.cache_data(ttl=3600)
 def _load_brands() -> list[str]:
-    df = db.query("SELECT DISTINCT brand FROM fct_events WHERE brand IS NOT NULL ORDER BY 1")
+    df = db.query("SELECT DISTINCT brand FROM fct_purchases WHERE brand IS NOT NULL ORDER BY 1")
     return df["brand"].tolist()
 
 
