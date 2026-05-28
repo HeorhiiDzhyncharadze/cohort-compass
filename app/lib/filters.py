@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from app.lib import db
+from lib import db
 
 # Cache category / brand lists so sidebar doesn't re-query on every interaction
 @st.cache_data(ttl=3600)

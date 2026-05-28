@@ -58,6 +58,7 @@ CSV (14GB) → scripts/ingest.py → Parquet (partitioned by event_date)
 ## Key Conventions
 
 - All SQL strings in `app/lib/queries.py` — never inline SQL in page files
+- Streamlit imports: use `from lib import db, queries` (NOT `from app.lib import`) — Streamlit adds `app/` to sys.path, not project root
 - `dbt/profiles.yml` is gitignored; connection via env var `DUCKDB_PATH`
 - `data/` and `warehouse/` are gitignored; `make data && make ingest` rebuilds from scratch
 - Streamlit Cloud deploy uses sampled DB (10% users) built by `scripts/sample_for_deploy.py`

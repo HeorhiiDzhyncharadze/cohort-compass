@@ -3,9 +3,9 @@
 import streamlit as st
 import plotly.express as px
 
-from app.lib import db, queries
-from app.lib.filters import render_sidebar
-from app.lib.sql_toggle import show_sql
+from lib import db, queries
+from lib.filters import render_sidebar
+from lib.sql_toggle import show_sql
 
 st.set_page_config(
     page_title="Cohort Compass",
