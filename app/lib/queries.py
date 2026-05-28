@@ -115,6 +115,8 @@ JOURNEY_TRANSITIONS = "SELECT * FROM mart_journey ORDER BY transition_count DESC
 # Churn (filled after ML step)
 # ---------------------------------------------------------------------------
 
+CHURN_FEATURES = "SELECT * FROM mart_churn_features"
+
 CHURN_SCORES = """
 -- Available after `make ml` populates scored_users table
 SELECT * FROM scored_users ORDER BY churn_probability DESC
