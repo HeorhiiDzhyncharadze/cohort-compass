@@ -59,4 +59,4 @@ models:
         description: "Total number of purchase events for this user"
       - name: total_spend
         description: "Sum of all purchase prices for this user"
-</content>
+

@@ -237,4 +237,4 @@ models:
         description: "(cvr - rolling_avg_cvr) / rolling_stddev_cvr. NULL in first 2 days (insufficient window)."
       - name: is_anomaly
         description: "True when |z_score| > 2"
-</content>
+

@@ -33,4 +33,4 @@ sources:
             description: "Session UUID — resets on each browser session"
           - name: event_date
             description: "Partition column: calendar month of event_time (YYYY-MM format)"
-</content>
+

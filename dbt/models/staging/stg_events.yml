@@ -38,4 +38,4 @@ models:
         description: "Session UUID string"
       - name: event_date
         description: "Month partition key (DATE, day=01 of each month) — used by incremental models"
-</content>
+
