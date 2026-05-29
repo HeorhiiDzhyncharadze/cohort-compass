@@ -22,6 +22,8 @@ import os
 from pathlib import Path
 
 import duckdb
+import pandas as pd
+import pyarrow.parquet as pq
 
 # ---------------------------------------------------------------------------
 # Config
@@ -33,11 +35,11 @@ SAMPLE_SEED = 42
 SAMPLE_FRAC = 0.10   # 10% of users ≈ ~200k from 2M
 
 # Tables to copy verbatim (small lookup / aggregate tables)
+# NOTE: mart_journey excluded — computed in a separate pass after src is closed
 VERBATIM_TABLES = [
     "mart_funnel",
     "mart_cohorts",
     "mart_anomalies",
-    "mart_journey",
 ]
 
 # Tables that need user-level sampling
@@ -75,8 +77,8 @@ def main() -> None:
     n_users = len(sampled_users)
     print(f"  → {n_users:,} users selected")
 
-    # Register in dest so we can use it as a filter
-    dest.register("_sampled_users", sampled_users)
+    # Register in src so JOIN queries against src tables can see it
+    src.register("_sampled_users", sampled_users)
 
     # ------------------------------------------------------------------
     # 2. Verbatim aggregate tables
@@ -129,7 +131,7 @@ def main() -> None:
             print(f"  ⚠  {table} skipped: {e}")
 
     # ------------------------------------------------------------------
-    # 5. fct_events — too large even at 10%; create a view from fct_purchases
+    # 5. fct_events — view over fct_purchases (purchase events only)
     # ------------------------------------------------------------------
     dest.execute("DROP VIEW IF EXISTS fct_events")
     dest.execute("""
@@ -140,9 +142,48 @@ def main() -> None:
             user_session, event_date
         FROM fct_purchases
     """)
-    print(f"  ✓  fct_events: view over fct_purchases (purchase events only)")
+    print("  ✓  fct_events: view over fct_purchases (purchase events only)")
 
+    # ------------------------------------------------------------------
+    # 6. mart_journey — read ONE Parquet file directly via pyarrow
+    #    (bypasses DuckDB entirely; stg_events scan needs ~12.4 GB which
+    #     exceeds the 12.5 GB DuckDB limit on a 16 GB machine)
+    # ------------------------------------------------------------------
     src.close()
+    print("  Computing mart_journey (pyarrow, first Parquet partition) …")
+    try:
+        parquet_dir = _ROOT / "data" / "parquet"
+        parquet_files = sorted(parquet_dir.glob("**/*.parquet"))
+        if not parquet_files:
+            raise FileNotFoundError(f"No Parquet files found in {parquet_dir}")
+
+        # Read only the first partition — enough to cover all 4×4 transitions
+        raw = pq.read_table(
+            parquet_files[0],
+            columns=["user_session", "event_type", "event_time"],
+        ).to_pandas()
+
+        raw = raw.sort_values(["user_session", "event_time"])
+        raw["from_event"] = raw.groupby("user_session")["event_type"].shift(1)
+
+        journey_df = (
+            raw[raw["from_event"].notna()]
+            .groupby(["from_event", "event_type"])
+            .size()
+            .reset_index(name="transition_count")
+            .rename(columns={"event_type": "to_event"})
+            .sort_values("transition_count", ascending=False)
+            .reset_index(drop=True)
+        )
+
+        dest.execute("DROP TABLE IF EXISTS mart_journey")
+        dest.register("_tmp_journey", journey_df)
+        dest.execute("CREATE TABLE mart_journey AS SELECT * FROM _tmp_journey")
+        dest.unregister("_tmp_journey")
+        print(f"  ✓  mart_journey: {len(journey_df):,} rows")
+    except Exception as e:
+        print(f"  ⚠  mart_journey skipped: {e}")
+
     dest.close()
 
     size_mb = Path(DEST_PATH).stat().st_size / 1_048_576
