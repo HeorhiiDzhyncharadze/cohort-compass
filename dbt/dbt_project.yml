@@ -29,3 +29,5 @@ vars:
   start_date: '2019-10-01'
   end_date: '2020-04-30'
   session_gap_minutes: 30
+
+# trigger
