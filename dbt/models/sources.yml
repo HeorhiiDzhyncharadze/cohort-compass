@@ -2,19 +2,35 @@ version: 2
 
 sources:
   - name: raw
-    description: "REES46 event stream loaded via scripts/ingest.py"
+    description: >
+      REES46 eCommerce event stream. Raw data loaded via scripts/ingest.py:
+      CSVs chunked to Parquet (partitioned by event_date), then exposed as a
+      DuckDB external view. ~285M events, Oct 2019 – Apr 2020.
     schema: main
     tables:
       - name: raw_events
-        description: "Raw REES46 events from Parquet external view"
+        description: >
+          One row per user event. Covers four event types across a real
+          multi-category online store collected by the REES46 marketing platform.
         columns:
           - name: event_time
+            description: "UTC timestamp of the event"
           - name: event_type
+            description: "Event action: view | cart | remove_from_cart | purchase"
           - name: product_id
+            description: "Anonymised product identifier"
           - name: category_id
+            description: "Internal category identifier (hashed)"
           - name: category_code
+            description: "Human-readable category path (e.g. electronics.smartphone). NULL for ~40% of rows."
           - name: brand
+            description: "Brand name (lowercase). NULL for some products."
           - name: price
+            description: "Item price in local currency. NULL for non-purchase events."
           - name: user_id
+            description: "Anonymised user identifier (consistent across sessions)"
           - name: user_session
+            description: "Session UUID — resets on each browser session"
           - name: event_date
+            description: "Partition column: calendar month of event_time (YYYY-MM format)"
+</content>

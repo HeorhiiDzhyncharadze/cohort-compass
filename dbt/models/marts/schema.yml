@@ -1,0 +1,240 @@
+version: 2
+
+models:
+
+  # ---------------------------------------------------------------------------
+  # Facts
+  # ---------------------------------------------------------------------------
+
+  - name: fct_events
+    description: >
+      Pass-through view of all clean events from stg_events.
+      Materialised as VIEW (not TABLE) — avoids writing 285M rows to disk on
+      a 16 GB machine. Used sparingly; prefer fct_purchases for purchase analysis.
+      Grain: 1 row per event.
+    columns:
+      - name: user_id
+        description: "User identifier"
+      - name: event_time
+        description: "Event timestamp"
+      - name: event_type
+        description: "view | cart | remove_from_cart | purchase"
+      - name: price
+        description: "Price (non-null for purchases only)"
+
+  - name: fct_purchases
+    description: >
+      Materialised subset of purchase events only. Loaded incrementally on
+      event_time — new partitions append without re-scanning the full history.
+      Unique key: event_time::varchar || user_id::varchar || product_id::varchar.
+      Grain: 1 row per purchase event.
+    columns:
+      - name: user_id
+        description: "User who made the purchase"
+      - name: event_time
+        description: "Purchase timestamp"
+      - name: product_id
+        description: "Purchased product"
+      - name: category_code
+        description: "Product category path (NULL for ~40% of rows)"
+      - name: brand
+        description: "Brand name"
+      - name: price
+        description: "Purchase price (always non-null in this table)"
+      - name: event_date
+        description: "Partition month — used by incremental filter"
+
+  # ---------------------------------------------------------------------------
+  # Dimensions
+  # ---------------------------------------------------------------------------
+
+  - name: dim_users
+    description: >
+      User spine table. One row per unique user who made at least one purchase.
+      Includes cohort month (for retention analysis), RFM inputs, and a simple
+      segment flag (NEW = exactly 1 purchase, REPEAT = 2+).
+      Grain: 1 row per user_id.
+    columns:
+      - name: user_id
+        description: "Unique user identifier"
+      - name: cohort_month
+        description: "Month of first purchase — defines the acquisition cohort"
+      - name: first_purchase_date
+        description: "Timestamp of first purchase"
+      - name: last_purchase_date
+        description: "Timestamp of most recent purchase"
+      - name: total_purchases
+        description: "Total purchase count across all time"
+      - name: total_spend
+        description: "Sum of all purchase prices"
+      - name: user_segment
+        description: "NEW (1 purchase) or REPEAT (2+ purchases)"
+
+  # ---------------------------------------------------------------------------
+  # Analytics marts
+  # ---------------------------------------------------------------------------
+
+  - name: mart_funnel
+    description: >
+      Monthly view→cart→purchase conversion funnel.
+      Counts unique users at each funnel stage per calendar month using
+      conditional aggregation on event_type.
+      Grain: 1 row per calendar month.
+    columns:
+      - name: event_date
+        description: "Month (YYYY-MM-DD, day=01)"
+      - name: viewers
+        description: "Distinct users who triggered at least one view event"
+      - name: carted
+        description: "Distinct users who added at least one item to cart"
+      - name: buyers
+        description: "Distinct users who completed at least one purchase"
+      - name: view_to_purchase_rate
+        description: "buyers / viewers — overall conversion rate"
+      - name: cart_to_purchase_rate
+        description: "buyers / carted — cart-to-checkout conversion rate"
+
+  - name: mart_cohorts
+    description: >
+      Monthly cohort retention matrix. Each row represents one cohort in one
+      observation period. retention_rate = 100% in period 0 (acquisition month)
+      and decays as users churn. Built with a 4-CTE pattern: cohorts →
+      cohort_sizes → user_periods → retention.
+      Grain: 1 row per (cohort_month × period_number).
+    columns:
+      - name: cohort_month
+        description: "Acquisition month — the month users made their first purchase"
+      - name: period_number
+        description: "Months since acquisition (0 = first month, 1 = one month later, …)"
+      - name: cohort_size
+        description: "Total users in this cohort (constant across all periods)"
+      - name: retained_users
+        description: "Users from this cohort who made a purchase in this period"
+      - name: retention_rate
+        description: "retained_users / cohort_size × 100, rounded to 2 dp"
+
+  - name: mart_rfm
+    description: >
+      RFM (Recency–Frequency–Monetary) scoring for all users.
+      Each dimension scored 1–5 via NTILE(5) window functions:
+        R = recency (5 = most recent last purchase),
+        F = frequency (5 = most purchases),
+        M = monetary (5 = highest spend).
+      Segments derived from R+F combined score:
+        Champions (≥8), Loyal (≥6), At Risk (≥4), Hibernating (≥2), Lost (<2).
+      Grain: 1 row per user_id.
+    columns:
+      - name: user_id
+        description: "User identifier"
+      - name: last_purchase_date
+        description: "Date of most recent purchase — basis for R score"
+      - name: total_purchases
+        description: "Purchase count — basis for F score"
+      - name: total_spend
+        description: "Total spend — basis for M score"
+      - name: r_score
+        description: "Recency score 1–5 (5 = most recently active)"
+      - name: f_score
+        description: "Frequency score 1–5 (5 = most frequent buyer)"
+      - name: m_score
+        description: "Monetary score 1–5 (5 = highest spender)"
+      - name: rfm_score
+        description: "Concatenated score string e.g. '555' for a Champion"
+      - name: rfm_segment
+        description: "Champions | Loyal | At Risk | Hibernating | Lost"
+
+  - name: mart_ltv
+    description: >
+      Historical LTV metrics per user plus a simple predicted LTV heuristic.
+      avg_days_between_purchases is NULL for single-purchase users (no gap to measure).
+      predicted_ltv = total_spend × 2 (assumes equal future spend — intentional
+      heuristic; documented as such in the app).
+      Grain: 1 row per user_id.
+    columns:
+      - name: user_id
+        description: "User identifier"
+      - name: total_purchases
+        description: "Total purchase count"
+      - name: total_spend
+        description: "Cumulative spend"
+      - name: avg_order_value
+        description: "total_spend / total_purchases (AOV)"
+      - name: avg_days_between_purchases
+        description: "Mean inter-purchase gap in days. NULL for single-purchase users."
+      - name: predicted_ltv
+        description: "Heuristic: total_spend × 2. Simple forward projection."
+
+  - name: mart_churn_features
+    description: >
+      Feature store for the churn classification model (ml/train_churn.py).
+      is_churned label: user has not purchased in the 60 days before 2020-04-30
+      (end of dataset). Leaking features are excluded from model training:
+        days_since_last_purchase — directly encodes the label,
+        r_score — NTILE on last_purchase_date (near-direct leakage),
+        cohort_month_num — newer cohorts can't be churned by definition.
+      Grain: 1 row per user_id.
+    columns:
+      - name: user_id
+        description: "User identifier"
+      - name: cohort_month
+        description: "Acquisition cohort month"
+      - name: total_purchases
+        description: "Feature: total purchase count"
+      - name: total_spend
+        description: "Feature: cumulative spend"
+      - name: days_since_last_purchase
+        description: "Days from last purchase to 2020-04-30. EXCLUDED from model (direct label leakage)."
+      - name: avg_days_between_purchases
+        description: "Feature: mean inter-purchase gap. NULL-filled with column median before training."
+      - name: is_churned
+        description: "Label: True if days_since_last_purchase > 60"
+      - name: r_score
+        description: "RFM recency score. EXCLUDED from model (near-direct leakage via last_purchase_date)."
+      - name: f_score
+        description: "Feature: RFM frequency score 1–5"
+      - name: m_score
+        description: "Feature: RFM monetary score 1–5"
+      - name: rfm_segment
+        description: "RFM segment label (used for visualisation, not in model)"
+
+  - name: mart_journey
+    description: >
+      Session-level event-type transition pairs computed via LAG window function.
+      Each row = one (from_event → to_event) pair with its total count across
+      all sessions in the dataset. Powers the Sankey diagram in the Streamlit app.
+      Materialised as VIEW — LAG over 285M rows (partitioned by user_session)
+      cannot be materialised as TABLE on a 16 GB machine.
+      Grain: 1 row per unique (from_event, to_event) combination.
+    columns:
+      - name: from_event
+        description: "The event type that preceded the transition"
+      - name: to_event
+        description: "The event type that followed"
+      - name: transition_count
+        description: "Total number of times this transition occurred across all sessions"
+
+  - name: mart_anomalies
+    description: >
+      Daily CVR anomaly detection via rolling 30-day Z-score.
+      CVR = buyers / viewers (approx_count_distinct for memory efficiency on 285M rows).
+      A day is flagged as anomalous when |Z-score| > 2 standard deviations from
+      the 30-day rolling mean. The model detected 12 anomalies in the 214-day window.
+      Grain: 1 row per calendar day.
+    columns:
+      - name: event_day
+        description: "Calendar date"
+      - name: viewers
+        description: "Approximate distinct users with a view event (approx_count_distinct)"
+      - name: buyers
+        description: "Approximate distinct users with a purchase event"
+      - name: cvr
+        description: "Conversion rate: buyers / viewers (rounded to 6 dp)"
+      - name: rolling_avg_cvr
+        description: "30-day trailing average CVR (window ROWS BETWEEN 29 PRECEDING AND CURRENT ROW)"
+      - name: rolling_stddev_cvr
+        description: "30-day trailing standard deviation of CVR"
+      - name: z_score
+        description: "(cvr - rolling_avg_cvr) / rolling_stddev_cvr. NULL in first 2 days (insufficient window)."
+      - name: is_anomaly
+        description: "True when |z_score| > 2"
+</content>

@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: int_sessions
+    description: >
+      Sessionizes the event stream using a 30-minute inactivity gap rule.
+      A new session starts when the gap to the previous event exceeds 30 minutes.
+      Session ID is a composite key: user_id + cumulative session counter.
+      Materialised as ephemeral — compiled inline by downstream models, never stored.
+      Grain: 1 row per (user_id, session_id, event).
+    columns:
+      - name: user_id
+        description: "User identifier"
+      - name: session_id
+        description: "Composite session key: user_id::varchar || '-' || session_id_raw::varchar"
+      - name: event_time
+        description: "Event timestamp within the session"
+      - name: event_type
+        description: "Event action within the session"
+      - name: converted
+        description: "True if this session contains at least one purchase event (bool_or aggregate)"
+
+  - name: int_purchases
+    description: >
+      Filters stg_events to purchase events only, and adds inter-purchase timing.
+      days_since_prev_purchase is derived via LAG(event_time) OVER (PARTITION BY user_id).
+      Materialised as ephemeral — used by int_users and mart_ltv.
+      Grain: 1 row per purchase event.
+    columns:
+      - name: user_id
+        description: "User identifier"
+      - name: event_time
+        description: "Purchase timestamp"
+      - name: product_id
+        description: "Purchased product"
+      - name: price
+        description: "Purchase price"
+      - name: purchase_rank
+        description: "1 = first purchase, 2 = second, etc. (ROW_NUMBER per user)"
+      - name: days_since_prev_purchase
+        description: "Days between this purchase and the previous one. NULL for first purchase."
+
+  - name: int_users
+    description: >
+      Aggregates purchase history per user: first/last purchase date, total orders,
+      total spend, and cohort_month (month of first purchase).
+      Materialised as ephemeral — used by dim_users.
+      Grain: 1 row per user_id.
+    columns:
+      - name: user_id
+        description: "User identifier"
+      - name: cohort_month
+        description: "First purchase month (DATE truncated to month) — defines the user's acquisition cohort"
+      - name: first_purchase_date
+        description: "Timestamp of the user's very first purchase"
+      - name: last_purchase_date
+        description: "Timestamp of the user's most recent purchase"
+      - name: total_purchases
+        description: "Total number of purchase events for this user"
+      - name: total_spend
+        description: "Sum of all purchase prices for this user"
+</content>

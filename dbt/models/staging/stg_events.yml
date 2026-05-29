@@ -2,18 +2,41 @@ version: 2
 
 models:
   - name: stg_events
+    description: >
+      Cleaned and deduplicated event stream. Casts raw strings to typed columns,
+      filters out zero-price non-purchase events, and removes duplicate rows via
+      ROW_NUMBER() QUALIFY. Materialised as a view — full 285M rows are never
+      written to disk; downstream incremental models pull only the rows they need.
+      Grain: 1 row per unique (user_id, event_time, product_id, event_type).
     columns:
       - name: user_id
+        description: "Anonymised user identifier (BIGINT cast from raw string)"
         tests: [not_null]
       - name: event_time
+        description: "Event timestamp cast to TIMESTAMP (UTC, no timezone suffix for DuckDB compat)"
         tests: [not_null]
       - name: event_type
+        description: "Cleaned event action: view | cart | remove_from_cart | purchase"
         tests:
           - accepted_values:
               arguments:
                 values: [view, cart, remove_from_cart, purchase]
+      - name: product_id
+        description: "Product identifier (BIGINT)"
+      - name: category_id
+        description: "Category identifier (BIGINT)"
+      - name: category_code
+        description: "Human-readable category path. NULL retained as-is."
+      - name: brand
+        description: "Brand name (lowercase string). NULL retained."
       - name: price
+        description: "Item price (DECIMAL 10,2). NULL for non-purchase rows; must be non-null for purchases."
         tests:
           - not_null:
               config:
                 where: "event_type = 'purchase'"
+      - name: user_session
+        description: "Session UUID string"
+      - name: event_date
+        description: "Month partition key (DATE, day=01 of each month) — used by incremental models"
+</content>
