@@ -19,8 +19,7 @@ models:
         description: "Cleaned event action: view | cart | remove_from_cart | purchase"
         tests:
           - accepted_values:
-              arguments:
-                values: [view, cart, remove_from_cart, purchase]
+              values: [view, cart, remove_from_cart, purchase]
       - name: product_id
         description: "Product identifier (BIGINT)"
       - name: category_id
