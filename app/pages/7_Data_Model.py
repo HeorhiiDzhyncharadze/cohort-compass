@@ -62,7 +62,13 @@ st.subheader("Interactive dbt Lineage Graph")
 
 DBT_DOCS_URL = "http://localhost:8081"
 
-tab_local, tab_gh = st.tabs(["🖥️ Local (make dbt-docs)", "🌐 GitHub Pages"])
+tab_gh, tab_local = st.tabs(["🌐 GitHub Pages", "🖥️ Local (make dbt-docs)"])
+
+with tab_gh:
+    GH_PAGES_URL = "https://heorhiidzhyncharadze.github.io/cohort-compass"
+    st.caption("Static dbt docs published via GitHub Actions → GitHub Pages.")
+    st.link_button("Open on GitHub Pages →", GH_PAGES_URL, type="primary")
+    components.iframe(GH_PAGES_URL, height=650, scrolling=True)
 
 with tab_local:
     st.caption(
@@ -70,17 +76,7 @@ with tab_local:
         "then click the button below to open the full interactive lineage graph."
     )
     st.link_button("Open dbt docs →", DBT_DOCS_URL, type="primary")
-
-    try:
-        components.iframe(DBT_DOCS_URL + "/#!/overview", height=650, scrolling=True)
-    except Exception:
-        st.info("dbt docs server not running. Start it with `make dbt-docs` and refresh.")
-
-with tab_gh:
-    GH_PAGES_URL = "https://heorhiidzhyncharadze.github.io/cohort-compass"
-    st.caption("Static dbt docs published via GitHub Actions → GitHub Pages.")
-    st.link_button("Open on GitHub Pages →", GH_PAGES_URL, type="primary")
-    components.iframe(GH_PAGES_URL, height=650, scrolling=True)
+    st.info("The iframe is disabled in the public demo — run locally to use the interactive lineage graph.")
 
 st.divider()
 
