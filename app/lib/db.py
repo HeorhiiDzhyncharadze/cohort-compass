@@ -18,6 +18,9 @@ _DEFAULT_DB = Path(__file__).parents[2] / "warehouse" / "cohort_compass.duckdb"
 def get_connection() -> duckdb.DuckDBPyConnection:
     """Return a cached read-only DuckDB connection."""
     db_path = os.getenv("DUCKDB_PATH", str(_DEFAULT_DB))
+    # Resolve relative path from repo root (guards against CWD != repo root on Streamlit Cloud)
+    if not Path(db_path).is_absolute():
+        db_path = str(Path(__file__).parents[2] / db_path)
     return duckdb.connect(db_path, read_only=True)
 
 
