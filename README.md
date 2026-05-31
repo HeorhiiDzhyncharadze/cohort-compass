@@ -1,6 +1,6 @@
 # Cohort Compass
 
-> End-to-end retention & LTV analytics platform on **411M real e-commerce events** — SQL-first architecture (dbt + DuckDB) with an interactive Streamlit explorer that exposes every chart's underlying SQL.
+> End-to-end retention & LTV analytics platform on **285M real e-commerce events** — SQL-first architecture (dbt + DuckDB) with an interactive Streamlit explorer that exposes every chart's underlying SQL.
 
 [![CI](https://github.com/heorhiidzhyncharadze/cohort-compass/actions/workflows/ci.yml/badge.svg)](https://github.com/heorhiidzhyncharadze/cohort-compass/actions/workflows/ci.yml)
 [![dbt docs](https://github.com/heorhiidzhyncharadze/cohort-compass/actions/workflows/dbt-docs.yml/badge.svg)](https://heorhiidzhyncharadze.github.io/cohort-compass)
@@ -10,7 +10,7 @@
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.38-red?logo=streamlit)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-1.5-blue?logo=scikit-learn)
 
-**[🚀 Live Demo](https://cohort-compass.streamlit.app)** &nbsp;|&nbsp; **[📊 dbt Docs](https://heorhiidzhyncharadze.github.io/cohort-compass)**
+**[🚀 Live Demo](https://cohort-compass-hd.streamlit.app)** &nbsp;|&nbsp; **[📊 dbt Docs](https://heorhiidzhyncharadze.github.io/cohort-compass)**
 
 ---
 
@@ -25,10 +25,26 @@ Most junior analytics portfolios are a Jupyter notebook on Olist or Titanic. Coh
 
 ---
 
+## Key Findings
+
+Analysed **~2M unique purchasers** across 7 months of real e-commerce data:
+
+| Metric | Value | Context |
+|---|---|---|
+| Monthly CVR (viewer → buyer) | **~11%** | Viewers who purchased in the same month |
+| M+1 cohort retention | **16.6%** | Typical healthy range for e-commerce: 15–25% |
+| Largest RFM segment | **Loyal (46%)** | Champions + Loyal = 65% of buyers |
+| CVR anomalies detected | **12 / 214 days** | Flagged by rolling 30-day Z-score |
+| Avg customer LTV | **~$982** | Over avg 3.3 purchases per user |
+| Churn model AUC | **0.63** | Honest — 3 leaking features excluded |
+
+---
+
 ## Screenshots
 
-<!-- TODO Day 14: add 6 screenshots -->
-*Screenshots coming after app is complete.*
+<!-- Add screenshots after recording Loom demo -->
+<!-- Suggested: Overview KPIs, Cohort heatmap, RFM scatter, Sankey, Auto-Insights, Data Model -->
+*Add screenshots to `docs/screenshots/` and update links here.*
 
 ---
 
@@ -142,7 +158,7 @@ make lint        # ruff format + check
 
 **REES46 eCommerce Behavior Data** ([Kaggle](https://www.kaggle.com/datasets/mkechinov/ecommerce-behavior-data-from-multi-category-store))
 
-- **411M events** across 7 months (Oct 2019 – Apr 2020)
+- **285M events** across 7 months (Oct 2019 – Apr 2020)
 - Collected from a real multi-category online store via REES46 marketing platform
 - Event types: `view`, `cart`, `remove_from_cart`, `purchase`
 - Schema: `event_time`, `event_type`, `product_id`, `category_id`, `category_code`, `brand`, `price`, `user_id`, `user_session`
