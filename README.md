@@ -18,7 +18,7 @@
 
 Most junior analytics portfolios are a Jupyter notebook on Olist or Titanic. Cohort Compass is different:
 
-- **Real scale** — 411M events from a live e-commerce store (REES46, Oct 2019–Apr 2020)
+- **Real scale** — 285M events from a live e-commerce store (REES46, Oct 2019–Apr 2020)
 - **SQL-first** — every transformation lives in dbt; every chart exposes its SQL via a "Show SQL" toggle
 - **Full pipeline** — raw CSV → chunked Parquet ingest → dbt staging/intermediate/marts → Streamlit app → sklearn churn model
 - **0$ infra** — DuckDB runs locally as a single file; deploy on Streamlit Community Cloud with sampled data
