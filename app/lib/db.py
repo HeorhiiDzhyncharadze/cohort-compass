@@ -11,7 +11,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-_DEFAULT_DB = Path(__file__).parents[2] / "warehouse" / "cohort_compass.duckdb"
+_FULL_DB = Path(__file__).parents[2] / "warehouse" / "cohort_compass.duckdb"
+_SAMPLE_DB = Path(__file__).parents[2] / "warehouse" / "cohort_compass_sample.duckdb"
+# Use full DB locally if it exists; fall back to sample DB (committed to git for Streamlit Cloud)
+_DEFAULT_DB = _FULL_DB if _FULL_DB.exists() else _SAMPLE_DB
 
 
 @st.cache_resource
